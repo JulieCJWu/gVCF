@@ -11,6 +11,7 @@ Input:
 
 Output:
     ../output/file_check.tsv
+    ../output/gz_index.txt
 """
 import csv
 import gzip

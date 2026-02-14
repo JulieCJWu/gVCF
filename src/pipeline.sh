@@ -1,26 +1,51 @@
 #!/usr/bin/env bash
 # Author: Chao-Jung Wu
 # Created: 2026-02-13
-# The pipeline sequentially executes:
-#       1) verify.py: Reads cohort metadata, matches SampleID to .gz files, and computes per-file line counts.
-#       2) filter.py: Filters gVCF files based on GT, DP, and GQ;
-#                     writes filtered VCFs, and outputs progressive per-sample counts merged with metadata.
-#       3) parquet.py: Converts per-cohort progressive TSVs to Parquet format, retaining only the required columns.
-#       4) makepdf.py: Generates a PDF report with summary visualizations (e.g., boxplots of Age and Het_Count) from the merged cohort data.
 #
-#   Each stage is executed in order, and the pipeline stops immediately if
-#   any step fails (set -e). The Python interpreter can be specified via
-#   the PYTHON_BIN environment variable (default: python3).
+# Pipeline steps:
+#       1) verify.py: Generates gz_index.txt and file_check.tsv from cohort metadata
+#       2) filter.py: Filters each gVCF by GT, DP, and GQ;
+#					  Writes filtered gz files;
+#					  Appends summary lines to log.txt
+#   	3) mergeMeta.py: Merges file_check.tsv and log.txt; Writes all_cohorts_progressive_counts.tsv
+#          and per-cohort progressive TSV files.
+#       4) parquet.py: Converts progressive TSV files to Parquet format
+#       5) makepdf.py: Generates a PDF report with boxplots
+#
+# The pipeline runs sequentially and stops on error (set -e).
 #
 # Usage:
 #   ./pipeline.sh
+#   PYTHON_BIN=python3 ./pipeline.sh   (optional)
 
 set -e
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 
-SCRIPTS=("verify.py" "filter.py" "parquet.py" "makePDF.py")
+script=verify.py
+echo "[INFO] Running $script"
+"$PYTHON_BIN" "$script"
+echo "[OK] Finished $script"
 
+
+## RUN filter_one_GZ.py
+INDEX_FILE="../output/gz_index.txt"
+OUT_ROOT="../output/filtered_gvcf"
+LOG_FILE="../output/log.txt"
+while IFS= read -r infile; do
+    [[ -z "$infile" ]] && continue
+    cohort="$(basename "$(dirname "$infile")")"
+    filename="$(basename "$infile")"
+    base="${filename%.gz}"
+    newname="${base}.het_dp20_gq30.gz"
+    outfile="$OUT_ROOT/$cohort/$newname"
+    mkdir -p "$OUT_ROOT/$cohort"
+    python3 filter_one_GZ.py "$infile" "$outfile" &>> "$LOG_FILE"
+done < "$INDEX_FILE"
+
+
+
+SCRIPTS=("mergeMeta.py" "parquet.py" "makePDF.py")
 for script in "${SCRIPTS[@]}"; do
     echo "[INFO] Running $script"
     "$PYTHON_BIN" "$script"
