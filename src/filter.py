@@ -13,7 +13,6 @@ Output:
   ../output/
     filtered_gvcf/Cohort_X/*.vcf.gz
     Cohort_X_progressive_counts.tsv
-    all_cohorts_progressive_counts.tsv
 """
 import gzip
 import sys
@@ -124,80 +123,46 @@ def filter_and_count(in_gz, out_gz):
     return counts
 
 
-# ----------------------------
-# Cohort processing
-# ----------------------------
-
-def process_cohort(cohort_dir, out_root):
-    """
-    For one Cohort_* folder:
-      - reads metadata.tsv
-      - finds each SampleID's gz file
-      - writes filtered gz for each sample
-      - writes a cohort TSV with metadata + progressive counts
-    """
-    cohort_name = cohort_dir.name
-    metadata_path = cohort_dir / "metadata.tsv"
-    if not metadata_path.exists():
-        raise FileNotFoundError(f"[ERROR] Missing metadata.tsv in {cohort_dir}")
-
-    df = pd.read_csv(metadata_path, sep="\t", dtype={"SampleID": str})
-
-    required = {"SampleID", "Age", "Ancestry", "IQ"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"[ERROR] {metadata_path} missing columns: {sorted(missing)}")
-
-    filtered_dir = out_root / "filtered_gvcf" / cohort_name
-    filtered_dir.mkdir(parents=True, exist_ok=True)
-
-    rows = []
-    for _, r in df.iterrows():
-        sid = str(r["SampleID"])
-
-        in_gz = find_sample_gz(cohort_dir, sid)
-        if in_gz is None:
-            raise FileNotFoundError(f"[ERROR] No .gz found for SampleID={sid} in {cohort_dir}")
-
-        out_gz = filtered_dir / f"{sid}.het_dp20_gq30.vcf.gz"
-        counts = filter_and_count(in_gz, out_gz)
-
-        rows.append({
-            "SampleID": sid,
-            "Age": r["Age"],
-            "Ancestry": r["Ancestry"],
-            "IQ": r["IQ"],
-            "Cohort": cohort_name,
-            "GZ_File": in_gz.name,
-            "Filtered_GZ_File": out_gz.name,
-            **counts, # ** to unpack dict
-        })
-
-    out_df = pd.DataFrame(rows)
-    out_tsv = out_root / f"{cohort_name}_progressive_counts.tsv"
-    out_df.to_csv(out_tsv, sep="\t", index=False)
-    return out_df
-
-
 def main(input_root="../input/", output_root="../output/"):
+    """
+    for each cohort:
+        read metadata.tsv
+        for each SampleID:
+            filter gz file
+        write cohort progressive metadata TSV
+    """
     in_root = Path(input_root)
     out_root = Path(output_root)
-
-    if not in_root.exists():
-        print(f"[ERROR] Input folder not found: {in_root}", file=sys.stderr)
-        return 2
-
     cohort_dirs = sorted(p for p in in_root.iterdir() if p.is_dir() and p.name.startswith("Cohort_"))
-    if not cohort_dirs:
-        print(f"[ERROR] No cohort folders found under {in_root} with prefix 'Cohort_'.", file=sys.stderr)
-        return 3
-
-    all_dfs = [process_cohort(c, out_root) for c in cohort_dirs]
-    combined_path = out_root / "all_cohorts_progressive_counts.tsv"
-    pd.concat(all_dfs, ignore_index=True).to_csv(combined_path, sep="\t", index=False)
-
-    print(f"[OK] Wrote filtered gVCFs to: {out_root / 'filtered_gvcf'}")
-    print(f"[OK] Wrote per-cohort metadata TSVs to: {out_root}")
+    # Per-Cohort processing
+    for cohort in cohort_dirs:
+        metadata_path = cohort / "metadata.tsv"
+        filtered_dir = out_root / "filtered_gvcf" / cohort.name
+        filtered_dir.mkdir(parents=True, exist_ok=True)
+        df = pd.read_csv(metadata_path, sep="\t", dtype={"SampleID": str})
+        rows = []
+        # Per-GZ Sample processing
+        for _, r in df.iterrows():
+            sid = str(r["SampleID"])
+            in_gz = find_sample_gz(cohort, sid)
+            out_gz = filtered_dir / f"{sid}.het_dp20_gq30.vcf.gz"
+            counts = filter_and_count(in_gz, out_gz)
+            rows.append({
+                "SampleID": sid,
+                "Age": r["Age"],
+                "Ancestry": r["Ancestry"],
+                "IQ": r["IQ"],
+                "Cohort": cohort.name,
+                "GZ_File": in_gz.name,
+                "Filtered_GZ_File": out_gz.name,
+                **counts, # ** to unpack dict
+            })
+        # Write cohort progressive metadata TSV
+        out_df = pd.DataFrame(rows)
+        out_tsv = out_root / f"{cohort.name}_progressive_counts.tsv"
+        out_df.to_csv(out_tsv, sep="\t", index=False)
+    print(f"[OK] Wrote filtered gVCFs to: {output_root}/filtered_gvcf")
+    print(f"[OK] Wrote per-cohort metadata TSVs to: {output_root}")
     return 0
 
 

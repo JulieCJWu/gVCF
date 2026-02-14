@@ -14,6 +14,7 @@ A **PDF** report is also generated, summarizing the merged cohort results.
 ## Run the Pipeline
 
 ```bash
+cd src
 ./pipeline.sh
 ```
 
