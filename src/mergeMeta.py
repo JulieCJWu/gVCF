@@ -11,6 +11,7 @@ Output:
   ../output/<Cohort>_progressive_counts.tsv
 """
 import re
+import sys
 from pathlib import Path
 import pandas as pd
 
@@ -44,6 +45,13 @@ def parse_log(log_path):
     return pd.DataFrame(rows).drop_duplicates("GZ_File", keep="last")
 
 def main():
+    if not FILE_CHECK.exists():
+        print(f"[ERROR] Missing file: {FILE_CHECK}", file=sys.stderr)
+        return 2
+    if not LOGTXT.exists():
+        print(f"[ERROR] Missing file: {LOGTXT}", file=sys.stderr)
+        return 3
+
     meta = pd.read_csv(FILE_CHECK, sep="\t", dtype=str).fillna("NA")
     meta["GZ_File"] = meta["GZ_File"].map(lambda s: Path(str(s)).name)
     logdf = parse_log(LOGTXT)
@@ -68,7 +76,8 @@ def main():
     for cohort, sub in df.groupby("Cohort"):
         sub.to_csv(OUTDIR / f"{cohort}_progressive_counts.tsv", sep="\t", index=False)
     print(f"[OK] Wrote merged and per-cohort progressive TSVs to: {OUTDIR}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -16,11 +16,11 @@
 #
 # Usage:
 #   ./pipeline.sh
-#   PYTHON_BIN=python3 ./pipeline.sh   (optional)
+#   (optional) PYTHON_BIN=python ./pipeline.sh
 
-set -e
+set -e # exit if a step returns a non-zero status
 
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+PYTHON_BIN="${PYTHON_BIN:-python}"
 
 script=verify.py
 echo "[INFO] Running $script"
@@ -28,7 +28,7 @@ echo "[INFO] Running $script"
 echo "[OK] Finished $script"
 
 
-## RUN filter_one_GZ.py
+script=filter_one_GZ.py
 INDEX_FILE="../output/gz_index.txt"
 OUT_ROOT="../output/filtered_gvcf"
 LOG_FILE="../output/log.txt"
@@ -40,7 +40,7 @@ while IFS= read -r infile; do
     newname="${base}.het_dp20_gq30.gz"
     outfile="$OUT_ROOT/$cohort/$newname"
     mkdir -p "$OUT_ROOT/$cohort"
-    python3 filter_one_GZ.py "$infile" "$outfile" &>> "$LOG_FILE"
+    python3 "$script" "$infile" "$outfile" &>> "$LOG_FILE"
 done < "$INDEX_FILE"
 
 
@@ -54,6 +54,5 @@ done
 
 echo "[DONE] All scripts completed successfully."
 
-#how to run:
-# dos2unix pipeline.sh | ./pipeline.sh
-#(optional) PYTHON_BIN=python3 ./pipeline.sh
+#Windows:
+# dos2unix pipeline.sh | PYTHON_BIN=python3 ./pipeline.sh

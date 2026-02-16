@@ -22,6 +22,7 @@ Input:
 Output:
   ../output/report.pdf
 """
+import sys
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -238,4 +239,4 @@ def main(input_dir="../output/", output_pdf="../output/report.pdf"):
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
