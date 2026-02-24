@@ -25,7 +25,12 @@ from pathlib import Path
 # ----------------------------
 # Criterion helpers
 # ----------------------------
-
+"""
+#CHROM  POS     ID      REF     ALT     QUAL    FILTER  INFO    FORMAT  6iegzyVR
+chr1    49272   .       G       A       148.77  PASS    .       GT:AD:DP:GQ     1|0:14,7:21:99
+chr1    732021  .       C       T       26.78   PASS    .       GT:AD:DP:GQ     0|1:15,3:18:55
+chr1    873542  .       G       A       659.77  PASS    .       GT:AD:DP:GQ     1|1:0,16:16:48
+"""
 def is_heterozygous(gt):
     """True for 0|1, 1|0"""
     return gt in {"0|1", "1|0"}
