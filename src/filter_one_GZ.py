@@ -153,6 +153,7 @@ def main():
         f"N_Records={counts['N_Records']} "
         f"After_GT_Het={counts['After_GT_Het']} "
         f"After_DP={counts['After_DP']} "
+        f"After_GQ={counts['After_GQ']} "
         f"Het_Count={counts['Het_Count']}",
         file=sys.stderr,
     )
